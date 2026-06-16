@@ -608,6 +608,16 @@
       mix-blend-mode: multiply;
       opacity: 0.10;
     }
+    /* Escudo que tapa la barra superior del visor de Drive (icono "Abrir en nueva pestaña") */
+    .works-pdf-shield {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 56px;
+      z-index: 5;
+      background: linear-gradient(180deg, #1d2a3a 0%, #1d2a3a 70%, rgba(29,42,58,0) 100%);
+      pointer-events: auto;
+      cursor: default;
+    }
     .work-summary {
       font-size: 0.82rem;
       line-height: 1.55;
@@ -1849,7 +1859,7 @@
             institucion: 'Fundación Neurocientífica Argentina · Sanatorio Anchorena Itoiz',
             resumen: 'Diagnóstico diferencial por imágenes entre hemangioma y cavernoma del seno cavernoso. Discusión de hallazgos radiológicos, abordaje quirúrgico y resultados.',
             keywords: ['seno cavernoso', 'hemangioma', 'cavernoma', 'neurocirugía', 'diagnóstico diferencial'],
-            pdf: 'pdf.pdf',
+            pdf: 'https://drive.google.com/file/d/1BQK8hP752VQP2YU4hC-MqvNsxQeSpkjl/view?usp=drive_link',
             imagenes: [],
             video: null
           },
@@ -1863,7 +1873,7 @@
             institucion: 'Fundación Neurocientífica Argentina',
             resumen: 'Revisión clínica y radiológica de la hidromielia, fisiopatología, hallazgos en RMN, opciones de tratamiento y seguimiento.',
             keywords: ['hidromielia', 'médula espinal', 'siringomielia', 'neurocirugía de columna'],
-            pdf: 'pdf.pdf',
+            pdf: 'https://drive.google.com/file/d/1XqVJOB4ndiUB29IZDQ-EdItc-xQz7SGS/view?usp=drive_link',
             imagenes: [],
             video: null
           },
@@ -1877,7 +1887,7 @@
             institucion: 'Fundación Neurocientífica Argentina',
             resumen: 'Reporte de caso de osteomielitis craneal: presentación, estudios complementarios, manejo quirúrgico y antibiótico, y evolución del paciente.',
             keywords: ['osteomielitis', 'infección craneal', 'neurocirugía', 'FUNEA'],
-            pdf: 'pdf.pdf',
+            pdf: 'https://drive.google.com/file/d/16vB4MLxY0Wp6fteMQEMhnGn33gNc6AXe/view?usp=drive_link',
             imagenes: [],
             video: null
           },
@@ -1891,7 +1901,7 @@
             institucion: 'Fundación Neurocientífica Argentina',
             resumen: 'Póster científico sobre tumor de seno frontal: presentación clínica, planificación quirúrgica, abordaje y resultado postoperatorio.',
             keywords: ['seno frontal', 'tumor', 'base de cráneo', 'neurocirugía'],
-            pdf: 'pdf.pdf',
+            pdf: 'https://drive.google.com/file/d/1ZqKQsEBmH5u-64dEHwOVmdDT44exNBeH/view?usp=drive_link',
             imagenes: [],
             video: null
           },
@@ -1905,7 +1915,7 @@
             institucion: 'Fundación Neurocientífica Argentina',
             resumen: 'Quiste aracnoideo recidivado: estrategia diagnóstica, planificación del re-tratamiento neuroquirúrgico y seguimiento por imágenes.',
             keywords: ['quiste aracnoideo', 'recidiva', 'neurocirugía', 'LCR'],
-            pdf: 'pdf.pdf',
+            pdf: 'https://drive.google.com/file/d/14k5y7Ib_e48zkHWxictYFvqhZUIdZ417/view?usp=drive_link',
             imagenes: [],
             video: null
           }
@@ -2079,15 +2089,36 @@
         // (#toolbar=0&navpanes=0) — en navegadores que ignoran esos params (Firefox)
         // la barra del visor nativo aparecerá igual; tal como aclara el Word,
         // no se promete protección absoluta.
+        // Convierte el valor del campo `pdf` en una URL utilizable por el iframe.
+        // - Drive share URL  → /preview (embed sin botón de descarga visible)
+        // - http(s) cualquiera → se usa tal cual
+        // - filename local    → trabajos-realizados/<id>/<file> con hash de encaje
+        function resolvePdfUrl(work) {
+          const p = work && work.pdf;
+          if (!p) return null;
+          if (/^https?:\/\//i.test(p)) {
+            const m = p.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+            if (m) return 'https://drive.google.com/file/d/' + m[1] + '/preview';
+            return p;
+          }
+          return buildAssetUrl(work, p) + '#toolbar=0&navpanes=0&scrollbar=1&page=1&zoom=page-fit';
+        }
+
         function renderPdfViewer(container, work) {
-          if (!work.pdf) {
+          const src = resolvePdfUrl(work);
+          if (!src) {
             container.innerHTML = `<div class="works-no-pdf">Vista previa no disponible para este trabajo.</div>`;
             return;
           }
-          const src = buildAssetUrl(work, work.pdf) + '#toolbar=0&navpanes=0&scrollbar=1&page=1&zoom=page-fit';
+          // sandbox: allow-scripts + allow-same-origin permite que el visor de Drive
+          // renderice el PDF, pero al NO incluir allow-popups, allow-popups-to-escape-sandbox,
+          // allow-top-navigation ni allow-downloads, el botón "Abrir en nueva pestaña" de
+          // Drive y cualquier intento de descarga quedan bloqueados.
+          // El "shield" superior además tapa visualmente la barra del visor de Drive.
           container.innerHTML = `
             <div class="works-pdf-viewer" oncontextmenu="return false" ondragstart="return false">
-              <iframe class="works-pdf-iframe" src="${src}" title="Vista previa del trabajo" loading="lazy"></iframe>
+              <iframe class="works-pdf-iframe" src="${src}" title="Vista previa del trabajo" loading="lazy" sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer"></iframe>
+              <div class="works-pdf-shield" aria-hidden="true"></div>
               <div class="works-watermark" aria-hidden="true"></div>
             </div>
           `;
